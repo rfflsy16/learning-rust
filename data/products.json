@@ -1,0 +1,58 @@
+[
+    {
+        "name": "Laptop Gaming Pro",
+        "description": "Laptop gaming performa tinggi dengan GPU terbaru",
+        "price": 15000000.0,
+        "stock": 10,
+        "category": "Elektronik"
+    },
+    {
+        "name": "Smartphone Ultra",
+        "description": "Smartphone dengan kamera 108MP dan layar AMOLED",
+        "price": 12000000.0,
+        "stock": 25,
+        "category": "Elektronik"
+    },
+    {
+        "name": "Headphone Wireless",
+        "description": "Headphone dengan noise cancelling dan baterai tahan 30 jam",
+        "price": 2500000.0,
+        "stock": 30,
+        "category": "Audio"
+    },
+    {
+        "name": "Monitor Gaming 27\"",
+        "description": "Monitor gaming 165Hz dengan response time 1ms",
+        "price": 3800000.0,
+        "stock": 15,
+        "category": "Komputer"
+    },
+    {
+        "name": "Mechanical Keyboard RGB",
+        "description": "Keyboard mekanik dengan switch Cherry MX Blue",
+        "price": 1200000.0,
+        "stock": 40,
+        "category": "Aksesoris"
+    },
+    {
+        "name": "Mouse Gaming",
+        "description": "Mouse gaming dengan sensor optik dan 8 tombol programmable",
+        "price": 850000.0,
+        "stock": 50,
+        "category": "Aksesoris"
+    },
+    {
+        "name": "SSD 1TB",
+        "description": "SSD dengan kecepatan baca 3500MB/s dan tulis 3000MB/s",
+        "price": 1500000.0,
+        "stock": 35,
+        "category": "Komputer"
+    },
+    {
+        "name": "Webcam 4K",
+        "description": "Webcam resolusi 4K dengan autofocus dan mikrofon dual",
+        "price": 1300000.0,
+        "stock": 20,
+        "category": "Aksesoris"
+    }
+]

@@ -1,49 +1,36 @@
-use crate::core::{config::Config, db};
-use crate::domain::product;
-use anyhow::Result;
 use axum::Router;
-use std::net::SocketAddr;
-use tower_http::{
-    cors::{Any, CorsLayer},
-    trace::{DefaultMakeSpan, TraceLayer},
-};
-use tracing::Level;
 
-/// Run the API server
-pub async fn run(config: Config) -> Result<()> {
-    // Set up database connection pool
-    let pool = db::init_pool(&config.database_url).await?;
+use sqlx::PgPool;
+use tower_http::cors::{Any, CorsLayer};
+use tower_http::trace::TraceLayer;
+
+use crate::core::config::Config;
+use crate::domain::product::routes::product_routes;
+
+/// Start the HTTP server
+pub async fn run_server(config: Config, pool: PgPool) -> anyhow::Result<()> {
+    let app = create_router(pool);
     
-    // Set up tracing for logs
-    tracing_subscriber::fmt()
-        .with_target(false)
-        .compact()
-        .init();
+    tracing::info!("Starting server on {}:{}", config.server_host, config.server_port);
     
-    // Set up CORS middleware
-    let cors = CorsLayer::new()
-        .allow_origin(Any)                  // Allow any origin
-        .allow_methods(Any)                 // Allow any HTTP method
-        .allow_headers(Any);                // Allow any headers
+    // Use the new axum::serve API
+    let listener = tokio::net::TcpListener::bind(config.server_addr).await?;
+    axum::serve(listener, app).await?;
     
-    // Set up tracing middleware for request logs
-    let trace = TraceLayer::new_for_http()
-        .make_span_with(DefaultMakeSpan::new().level(Level::INFO));
-    
-    // Build application routes
-    let app = Router::new()
-        .merge(product::routes::product_routes(pool.clone()))  // Add product routes
-        .layer(cors)                        // Apply CORS middleware
-        .layer(trace);                      // Apply tracing middleware
-    
-    // Get socket address for server
-    let addr = SocketAddr::from(([0, 0, 0, 0], config.server_port));
-    
-    // Start server
-    tracing::info!("Listening on {}", addr);
-    axum::Server::bind(&addr)
-        .serve(app.into_make_service())
-        .await?;
-        
     Ok(())
+}
+
+/// Create API router with all routes
+fn create_router(pool: PgPool) -> Router {
+    // Configure CORS middleware
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods(Any)
+        .allow_headers(Any);
+    
+    // Build router with all routes
+    Router::new()
+        .merge(product_routes(pool))
+        .layer(TraceLayer::new_for_http())
+        .layer(cors)
 }

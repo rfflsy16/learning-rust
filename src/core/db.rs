@@ -1,21 +1,14 @@
-use anyhow::Result;
-use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
+use sqlx::postgres::{PgPool, PgPoolOptions};
+use std::time::Duration;
 
-/// Database connection pool type
-pub type DbPool = Pool<Postgres>;
+/// Type alias for database connection pool
+pub type DbPool = PgPool;
 
 /// Initialize database connection pool
-pub async fn init_pool(database_url: &str) -> Result<DbPool> {
-    // Create connection pool with specified options
-    let pool = PgPoolOptions::new()
-        .max_connections(10)                  // Maximum number of connections in the pool
-        .connect(database_url)                // Connect to database using URL
-        .await?;                             // Await connection and propagate any errors
-        
-    // Run migrations to ensure database schema is up to date
-    sqlx::migrate!("./migrations")
-        .run(&pool)
-        .await?;
-        
-    Ok(pool)
+pub async fn init_db(database_url: &str) -> Result<DbPool, sqlx::Error> {
+    PgPoolOptions::new()
+        .max_connections(10)
+        .acquire_timeout(Duration::from_secs(5))
+        .connect(database_url)
+        .await
 }

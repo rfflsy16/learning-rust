@@ -1,14 +1,14 @@
 [package]
-name = "learning-rust"
+name = "learning_rust"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
 axum = "0.8.1"                                     # Web framework
-tokio = { version = "1.32.0", features = ["full"] } # Async runtime
+tokio = { version = "1.32.0", features = ["full", "fs"] }
 serde = { version = "1.0", features = ["derive"] }  # Serialization/deserialization
 serde_json = "1.0"                                  # JSON support
-sqlx = { version = "0.8.3", features = ["runtime-tokio", "tls-rustls", "postgres", "uuid", "chrono", "json"] } # Database access
+sqlx = { version = "0.8.3", features = ["runtime-tokio-rustls", "postgres", "uuid", "chrono", "json", "time", "bigdecimal"] } # Database access
 tower-http = { version = "0.6.2", features = ["cors", "trace"] } # HTTP middleware
 tracing = "0.1"                                    # Logging
 tracing-subscriber = { version = "0.3", features = ["env-filter"] } # Logging configuration
@@ -18,3 +18,5 @@ chrono = { version = "0.4.31", features = ["serde"] } # Date/time handling
 thiserror = "2.0.12"                               # Error handling
 anyhow = "1.0"                                     # Error propagation
 async-trait = "0.1.74"
+bigdecimal = { version = "0.4", features = ["serde"] } # For decimal support
+
