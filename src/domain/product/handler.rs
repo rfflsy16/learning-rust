@@ -6,6 +6,7 @@ use axum::{
     response::IntoResponse,
     Json,
 };
+use serde_json;
 use uuid::Uuid;
 
 /// Product HTTP request handlers
@@ -88,7 +89,13 @@ impl ProductHandler {
         // Delete product from database
         self.repository.delete(id).await?;
         
-        // Return 204 No Content on success
-        Ok(StatusCode::NO_CONTENT)
+        // Return success message with the deleted ID
+        Ok((
+            StatusCode::OK, 
+            Json(serde_json::json!({
+                "success": true,
+                "message": format!("Product with ID {} successfully deleted", id)
+            }))
+        ))
     }
 }
