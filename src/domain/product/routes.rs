@@ -24,7 +24,7 @@ pub fn product_routes(pool: DbPool) -> Router {
     Router::new()
         .route("/products", get(list_products).post(create_product))
         .route(
-            "/products/:id",
+            "/products/{id}",
             get(get_product).put(update_product).delete(delete_product),
         )
         .with_state(handler)

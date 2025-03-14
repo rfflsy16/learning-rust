@@ -8,6 +8,7 @@ use thiserror::Error;
 
 /// API error types
 #[derive(Error, Debug)]
+#[allow(dead_code)]  // Suppress warnings about unused variants
 pub enum ApiError {
     #[error("Database error: {0}")]
     Database(#[from] sqlx::Error),

@@ -2,8 +2,8 @@
 
 // Add imports at the top
 use chrono::{DateTime, TimeZone, Utc};
-// Fix the time import - use the full path to avoid confusion with tokio::time
-use time::OffsetDateTime;
+// Use the external time crate explicitly
+use ::time::OffsetDateTime;
 
 /// Convert OffsetDateTime to chrono's DateTime<Utc>
 pub fn offset_to_chrono(dt: OffsetDateTime) -> DateTime<Utc> {
@@ -13,6 +13,7 @@ pub fn offset_to_chrono(dt: OffsetDateTime) -> DateTime<Utc> {
 }
 
 /// Format currency to Indonesian Rupiah format
+#[allow(dead_code)]
 pub fn format_rupiah(amount: f64) -> String {
     let mut s = String::new();
     let amount_str = format!("{:.0}", amount);
@@ -30,11 +31,13 @@ pub fn format_rupiah(amount: f64) -> String {
 }
 
 /// Validate that a price is not negative
+#[allow(dead_code)]
 pub fn validate_price(price: f64) -> bool {
     price >= 0.0
 }
 
 /// Truncate a string to a maximum length and add ellipsis if truncated
+#[allow(dead_code)]
 pub fn truncate_string(s: &str, max_len: usize) -> String {
     if s.len() <= max_len {
         s.to_string()
