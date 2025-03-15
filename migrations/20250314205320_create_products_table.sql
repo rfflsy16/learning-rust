@@ -1,7 +1,7 @@
 -- Add migration script here
 -- Enable pgcrypto for UUID generation
 
-DROP TABLE IF NOT EXISTS products
+DROP TABLE IF EXISTS products;
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
