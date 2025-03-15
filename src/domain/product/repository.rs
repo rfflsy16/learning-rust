@@ -60,7 +60,6 @@ impl ProductRepository {
     
     /// Create a new product in the database
     pub async fn create(&self, product: &CreateProduct) -> Result<Product, ApiError> {
-        // SQL query to insert new product
         let row = query(
             r#"
             INSERT INTO products (name, description, price, stock, category)
@@ -69,10 +68,10 @@ impl ProductRepository {
             "#,
         )
         .bind(&product.name)
-        .bind(product.description.as_deref())  // Convert Option<String> to Option<&str>
+        .bind(product.description.as_deref())  
         .bind(product.price)
         .bind(product.stock.unwrap_or(0))
-        .bind(product.category.as_deref())  // Convert Option<String> to Option<&str>
+        .bind(product.category.as_deref())  
         .fetch_one(&self.pool)
         .await
         .map_err(ApiError::Database)?;
