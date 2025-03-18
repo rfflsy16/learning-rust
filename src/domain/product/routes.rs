@@ -22,43 +22,41 @@ pub fn product_routes(pool: DbPool) -> Router {
     
     // Define routes with shared state
     Router::new()
-        .route("/products", get(list_products).post(create_product))
-        .route(
-            "/products/{id}",
-            get(get_product).put(update_product).delete(delete_product),
+        .route("/products", 
+            get(list_products)
+            .post(create_product)
+        )
+        .route("/products/{id}",
+            get(get_product)
+            .put(update_product)
+            .delete(delete_product)
         )
         .with_state(handler)
 }
 
-// Handler functions that take the shared state
+/// Handler functions that take the shared state
 async fn list_products(
     State(handler): State<SharedHandler>,
     Query(filter): Query<ProductFilter>,
 ) -> impl IntoResponse {
-    match handler.list_products(filter).await {
-        Ok(response) => response.into_response(),
-        Err(err) => err.into_response(),
-    }
+    handler.list_products(filter).await
+        .map_or_else(|err| err.into_response(), |response| response.into_response())
 }
 
 async fn create_product(
     State(handler): State<SharedHandler>,
     Json(product): Json<CreateProduct>,
 ) -> impl IntoResponse {
-    match handler.create_product(product).await {
-        Ok(response) => response.into_response(),
-        Err(err) => err.into_response(),
-    }
+    handler.create_product(product).await
+        .map_or_else(|err | err.into_response(), |response| response.into_response())
 }
 
 async fn get_product(
     State(handler): State<SharedHandler>,
     Path(id): Path<Uuid>,
 ) -> impl IntoResponse {
-    match handler.get_product(id).await {
-        Ok(response) => response.into_response(),
-        Err(err) => err.into_response(),
-    }
+    handler.get_product(id).await
+        .map_or_else(|err| err.into_response(), |response| response.into_response())
 }
 
 async fn update_product(
@@ -66,18 +64,14 @@ async fn update_product(
     Path(id): Path<Uuid>,
     Json(update): Json<UpdateProduct>,
 ) -> impl IntoResponse {
-    match handler.update_product(id, update).await {
-        Ok(response) => response.into_response(),
-        Err(err) => err.into_response(),
-    }
+    handler.update_product(id, update).await
+        .map_or_else(|err| err.into_response(), |response| response.into_response())
 }
 
 async fn delete_product(
     State(handler): State<SharedHandler>,
     Path(id): Path<Uuid>,
 ) -> impl IntoResponse {
-    match handler.delete_product(id).await {
-        Ok(response) => response.into_response(),
-        Err(err) => err.into_response(),
-    }
+    handler.delete_product(id).await
+        .map_or_else(|err| err.into_response(), |response| response.into_response())
 }

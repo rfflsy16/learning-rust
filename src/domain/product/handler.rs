@@ -1,12 +1,8 @@
 use crate::core::error::ApiError;
 use crate::domain::product::model::{CreateProduct, ProductFilter, UpdateProduct};
 use crate::domain::product::repository::ProductRepository;
-use axum::{
-    http::StatusCode,
-    response::IntoResponse,
-    Json,
-};
-use serde_json;
+use axum::{http::StatusCode, response::IntoResponse, Json};
+use serde_json::json;
 use uuid::Uuid;
 
 /// Product HTTP request handlers
@@ -25,15 +21,11 @@ impl ProductHandler {
         &self,
         product: CreateProduct,
     ) -> Result<impl IntoResponse + '_, ApiError> {
-        // Validate request data
-        if product.price < 0.0 {
-            return Err(ApiError::BadRequest("Price cannot be negative".to_string()));
-        }
+        // Validate price
+        self.validate_price(product.price)?;
         
-        // Create product in database
+        // Create product in database and return with 201 status
         let created_product = self.repository.create(&product).await?;
-        
-        // Return created product with 201 status
         Ok((StatusCode::CREATED, Json(created_product)))
     }
     
@@ -42,10 +34,7 @@ impl ProductHandler {
         &self,
         id: Uuid,
     ) -> Result<impl IntoResponse + '_, ApiError> {
-        // Get product from database
         let product = self.repository.find_by_id(id).await?;
-        
-        // Return product
         Ok(Json(product))
     }
     
@@ -54,10 +43,7 @@ impl ProductHandler {
         &self,
         filter: ProductFilter,
     ) -> Result<impl IntoResponse + '_, ApiError> {
-        // Get filtered products from database
         let products = self.repository.list(&filter).await?;
-        
-        // Return product list
         Ok(Json(products))
     }
     
@@ -67,17 +53,12 @@ impl ProductHandler {
         id: Uuid,
         update: UpdateProduct,
     ) -> Result<impl IntoResponse + '_, ApiError> {
-        // Validate request data
+        // Validate price if provided
         if let Some(price) = update.price {
-            if price < 0.0 {
-                return Err(ApiError::BadRequest("Price cannot be negative".to_string()));
-            }
+            self.validate_price(price)?;
         }
         
-        // Update product in database
         let updated_product = self.repository.update(id, &update).await?;
-        
-        // Return updated product
         Ok(Json(updated_product))
     }
     
@@ -86,16 +67,22 @@ impl ProductHandler {
         &self,
         id: Uuid,
     ) -> Result<impl IntoResponse + '_, ApiError> {
-        // Delete product from database
         self.repository.delete(id).await?;
         
-        // Return success message with the deleted ID
         Ok((
             StatusCode::OK, 
-            Json(serde_json::json!({
+            Json(json!({
                 "success": true,
                 "message": format!("Product with ID {} successfully deleted", id)
             }))
         ))
+    }
+    
+    // Helper method to validate price
+    fn validate_price(&self, price: f64) -> Result<(), ApiError> {
+        if price < 0.0 {
+            return Err(ApiError::BadRequest("Price cannot be negative".to_string()));
+        }
+        Ok(())
     }
 }
