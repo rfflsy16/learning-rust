@@ -22,11 +22,11 @@ pub fn product_routes(pool: DbPool) -> Router {
     
     // Define routes with shared state
     Router::new()
-        .route("/products", 
+        .route("/api/products", 
             get(_products)
             .post(create_product)
         )
-        .route("/products/{id}",
+        .route("/api/products/{id}",
             get(get_product)
             .put(update_product)
             .delete(delete_product)

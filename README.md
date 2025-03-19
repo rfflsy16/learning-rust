@@ -43,7 +43,7 @@ SERVER_HOST=127.0.0.1
 SERVER_PORT=3000
 RUST_LOG=info
 
-```plaintext
+
 
 ### Database Setup
 
@@ -53,23 +53,22 @@ Run the migrations to set up the database schema:
 cargo install sqlx-cli
 sqlx database create
 sqlx migrate run
- ```
+
 ```
 
 ### Running the Application
 ```bash
-# Run in development mode (with automatic seeding)
-cargo run
+# Run in development mode 
+cargo run --bin learning_rust
 
 # Run the seeder explicitly
 cargo run --bin seed
- ```
 ```
 
 ## API Documentation
 ### Product Endpoints List Products
 ```plaintext
-GET /products
+GET /api/products
  ```
 
 Query Parameters:
@@ -98,8 +97,7 @@ Response:
  ```
 ```
  Get Product by ID
-```plaintext
-GET /products/{id}
+GET /api/products/{id}
  ```
 
 Response:
@@ -116,11 +114,11 @@ Response:
     "created_at": "2025-03-18T13:18:09.796231Z",
     "updated_at": "2025-03-18T13:18:09.796231Z"
 }
- ```
+
 ```
  Create Product
 ```plaintext
-POST /products
+POST /api/products
  ```
 
 Request Body:
@@ -155,8 +153,8 @@ Response:
  ```
 ```
  Update Product
-```plaintext
-PUT /products/{id}
+
+PUT /api/products/{id}
  ```
 
 Request Body (all fields optional):
@@ -189,8 +187,8 @@ Response:
  ```
 ```
  Delete Product
-```plaintext
-DELETE /products/{id}
+
+DELETE /api/products/{id}
  ```
 
 Response:
