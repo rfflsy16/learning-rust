@@ -1,5 +1,5 @@
 use crate::core::db::DbPool;
-use crate::domain::product::handler::ProductHandler;
+use crate::domain::product::service::ProductHandler;
 use crate::domain::product::model::{CreateProduct, ProductFilter, UpdateProduct};
 use crate::domain::product::repository::ProductRepository;
 use axum::{
@@ -23,7 +23,7 @@ pub fn product_routes(pool: DbPool) -> Router {
     // Define routes with shared state
     Router::new()
         .route("/products", 
-            get(list_products)
+            get(_products)
             .post(create_product)
         )
         .route("/products/{id}",
@@ -35,7 +35,7 @@ pub fn product_routes(pool: DbPool) -> Router {
 }
 
 /// Handler functions that take the shared state
-async fn list_products(
+async fn _products(
     State(handler): State<SharedHandler>,
     Query(filter): Query<ProductFilter>,
 ) -> impl IntoResponse {
