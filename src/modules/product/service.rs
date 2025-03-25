@@ -1,6 +1,6 @@
 use crate::core::error::ApiError;
-use crate::domain::product::model::{CreateProduct, ProductFilter, UpdateProduct};
-use crate::domain::product::repository::ProductRepository;
+use crate::modules::product::model::{CreateProduct, ProductFilter, UpdateProduct};
+use crate::modules::product::repository::ProductRepository;
 use axum::{http::StatusCode, response::IntoResponse, Json};
 use serde_json::json;
 use uuid::Uuid;

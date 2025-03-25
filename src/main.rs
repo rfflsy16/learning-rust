@@ -1,5 +1,5 @@
 mod core;
-mod domain;
+mod modules;
 mod seeder;
 mod utils;
 

@@ -5,7 +5,7 @@ use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
 
 use crate::core::config::Config;
-use crate::domain::product::routes::product_routes;
+use crate::modules::product::routes::product_routes;
 
 /// Start the HTTP server
 pub async fn run_server(config: Config, pool: PgPool) -> anyhow::Result<()> {

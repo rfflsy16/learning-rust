@@ -229,7 +229,7 @@ learning-rust/
 │   │   ├── error.rs       # Error handling
 │   │   ├── mod.rs         # Module exports
 │   │   └── server.rs      # HTTP server setup
-│   ├── domain/            # Business domain modules
+│   ├── modules/            # Business modules
 │   │   ├── product/       # Product domain
 │   │   │   ├── model.rs   # Data models
 │   │   │   ├── repository.rs # Database operations

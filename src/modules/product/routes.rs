@@ -1,7 +1,7 @@
 use crate::core::db::DbPool;
-use crate::domain::product::service::ProductHandler;
-use crate::domain::product::model::{CreateProduct, ProductFilter, UpdateProduct};
-use crate::domain::product::repository::ProductRepository;
+use crate::modules::product::service::ProductHandler;
+use crate::modules::product::model::{CreateProduct, ProductFilter, UpdateProduct};
+use crate::modules::product::repository::ProductRepository;
 use axum::{
     extract::{Path, Query, State},
     response::IntoResponse,

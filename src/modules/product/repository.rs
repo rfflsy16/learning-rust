@@ -1,6 +1,6 @@
 use crate::core::db::DbPool;
 use crate::core::error::ApiError;
-use crate::domain::product::model::{CreateProduct, Product, ProductFilter, UpdateProduct};
+use crate::modules::product::model::{CreateProduct, Product, ProductFilter, UpdateProduct};
 use crate::utils::offset_to_chrono;
 use sqlx::{query, FromRow, postgres::PgRow, Row};
 use uuid::Uuid;

@@ -2,15 +2,15 @@ use sqlx::PgPool;
 use std::path::Path;
 use tokio::fs;
 
-use crate::domain::product::model::CreateProduct;
-use crate::domain::product::repository::ProductRepository;
+use crate::modules::product::model::CreateProduct;
+use crate::modules::product::repository::ProductRepository;
 
 /// Seed product data from JSON file
 pub async fn seed(pool: &PgPool) -> anyhow::Result<()> {
     let repo = ProductRepository::new(pool.clone());
     
     // Check if we need to seed by looking for existing products
-    let filter = crate::domain::product::model::ProductFilter {
+    let filter = crate::modules::product::model::ProductFilter {
         name: None,
         category: None,
         min_price: None,
