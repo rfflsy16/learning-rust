@@ -6,6 +6,7 @@ use tower_http::trace::TraceLayer;
 
 use crate::core::config::Config;
 use crate::modules::product::routes::product_routes;
+use crate::modules::user::routes::user_routes;
 
 /// Start the HTTP server
 pub async fn run_server(config: Config, pool: PgPool) -> anyhow::Result<()> {
@@ -30,7 +31,8 @@ fn create_router(pool: PgPool) -> Router {
     
     // Build router with all routes
     Router::new()
-        .merge(product_routes(pool))
+        .merge(product_routes(pool.clone()))
+        .merge(user_routes(pool))
         .layer(TraceLayer::new_for_http())
         .layer(cors)
 }

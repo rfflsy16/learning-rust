@@ -20,3 +20,5 @@ anyhow = "1.0"                                     # Error propagation
 async-trait = "0.1.74"
 bigdecimal = { version = "0.4", features = ["serde"] } # For decimal support
 time = "0.3.27"
+argon2 = "0.5.0"                                   # Password hashing
+jsonwebtoken = "9.3.1"                             # JWT handling

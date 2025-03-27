@@ -1,12 +1,13 @@
-# Learning Rust - Product Management API
+# Learning Rust - Product & User Management API
 
-A RESTful API built with Rust for managing product inventory. This project demonstrates Rust's capabilities for building high-performance, type-safe web services using modern libraries like Axum, SQLx, and Tokio.
+A RESTful API built with Rust for managing product inventory and user authentication. This project demonstrates Rust's capabilities for building high-performance, type-safe web services using modern libraries like Axum, SQLx, and Tokio.
 
 ## Project Overview
 
-This application provides a complete product management system with the following features:
+This application provides a complete management system with the following features:
 
-- RESTful API for CRUD operations on products
+- RESTful API for CRUD operations on products and users
+- User authentication with JWT tokens
 - PostgreSQL database integration
 - Structured error handling
 - Data validation
@@ -26,6 +27,8 @@ This application provides a complete product management system with the followin
 - **UUID Handling**: uuid
 - **Date/Time**: Chrono
 - **Decimal Support**: BigDecimal
+- **Password Hashing**: Argon2
+- **Authentication**: JWT (JSON Web Tokens)
 
 ## Getting Started
 
@@ -38,10 +41,12 @@ This application provides a complete product management system with the followin
 ### Environment Setup
 
 Create a `.env` file in the project root with the following variables:
+
 DATABASE_URL=postgres://username:password@localhost:5432/learning_rust
 SERVER_HOST=127.0.0.1
 SERVER_PORT=3000
 RUST_LOG=info
+JWT_SECRET=your_jwt_secret_key
 
 
 
@@ -53,7 +58,6 @@ Run the migrations to set up the database schema:
 cargo install sqlx-cli
 sqlx database create
 sqlx migrate run
-
 ```
 
 ### Running the Application
@@ -63,9 +67,148 @@ cargo run --bin learning_rust
 
 # Run the seeder explicitly
 cargo run --bin seed
-```
+ ```
 
 ## API Documentation
+### User Authentication Endpoints Register User
+```plaintext
+POST /api/users
+ ```
+
+Request Body:
+
+```json
+{
+  "username": "newuser",
+  "email": "user@example.com",
+  "password": "password123"
+}
+ ```
+
+Response:
+
+```json
+{
+  "id": "ce28c9c2-3bad-493b-860d-d9139c93647b",
+  "username": "newuser",
+  "email": "user@example.com",
+  "created_at": "2023-01-01T00:00:00Z",
+  "updated_at": "2023-01-01T00:00:00Z"
+}
+ ```
+```
+ Login User
+POST /api/auth/login
+ ```
+
+Request Body:
+
+```json
+{
+  "email": "user@example.com",
+  "password": "password123"
+}
+ ```
+
+Response:
+
+```json
+{
+  "user": {
+    "id": "ce28c9c2-3bad-493b-860d-d9139c93647b",
+    "username": "newuser",
+    "email": "user@example.com",
+    "created_at": "2023-01-01T00:00:00Z",
+    "updated_at": "2023-01-01T00:00:00Z"
+  },
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+ ```
+```
+ Get User by ID
+```plaintext
+GET /api/users/{id}
+ ```
+
+Response:
+
+```json
+{
+  "id": "ce28c9c2-3bad-493b-860d-d9139c93647b",
+  "username": "newuser",
+  "email": "user@example.com",
+  "created_at": "2023-01-01T00:00:00Z",
+  "updated_at": "2023-01-01T00:00:00Z"
+}
+ ```
+```
+ List Users
+```plaintext
+GET /api/users
+ ```
+
+Query Parameters:
+
+- username (optional): Filter by username (partial match)
+- email (optional): Filter by email (partial match)
+- limit (optional): Maximum number of results to return
+- offset (optional): Number of results to skip (for pagination)
+Response:
+
+```json
+[
+  {
+    "id": "ce28c9c2-3bad-493b-860d-d9139c93647b",
+    "username": "newuser",
+    "email": "user@example.com",
+    "created_at": "2023-01-01T00:00:00Z",
+    "updated_at": "2023-01-01T00:00:00Z"
+  }
+]
+ ```
+```
+ Update User
+```plaintext
+PUT /api/users/{id}
+ ```
+
+Request Body (all fields optional):
+
+```json
+{
+  "username": "updateduser",
+  "email": "updated@example.com",
+  "password": "newpassword123"
+}
+ ```
+
+Response:
+
+```json
+{
+  "id": "ce28c9c2-3bad-493b-860d-d9139c93647b",
+  "username": "updateduser",
+  "email": "updated@example.com",
+  "created_at": "2023-01-01T00:00:00Z",
+  "updated_at": "2023-01-01T00:00:00Z"
+}
+ ```
+```
+ Delete User
+```plaintext
+DELETE /api/users/{id}
+ ```
+
+Response:
+
+```json
+{
+  "success": true,
+  "message": "User with ID {id} successfully deleted"
+}
+ ```
+```
+
 ### Product Endpoints List Products
 ```plaintext
 GET /api/products
@@ -114,10 +257,9 @@ Response:
     "created_at": "2025-03-18T13:18:09.796231Z",
     "updated_at": "2025-03-18T13:18:09.796231Z"
 }
-
+ ```
 ```
  Create Product
-```plaintext
 POST /api/products
  ```
 
@@ -131,11 +273,10 @@ Request Body:
   "stock": 10,
   "category": "Category"
 }
-
+ ```
 ```
 
 Response:
-
 
 ```json
 {
@@ -149,11 +290,9 @@ Response:
   "created_at": "2023-01-01T00:00:00Z",
   "updated_at": "2023-01-01T00:00:00Z"
 }
-
  ```
 ```
  Update Product
-
 PUT /api/products/{id}
  ```
 
@@ -168,6 +307,7 @@ Request Body (all fields optional):
   "category": "Updated Category",
   "is_active": true
 }
+ ```
 ```
 
 Response:
@@ -187,7 +327,6 @@ Response:
  ```
 ```
  Delete Product
-
 DELETE /api/products/{id}
  ```
 
@@ -198,6 +337,7 @@ Response:
   "success": true,
   "message": "Product with ID {id} successfully deleted"
 }
+ ```
 ```
 
 ### Error Responses
@@ -211,14 +351,18 @@ The API returns appropriate HTTP status codes and error messages:
 
 Common status codes:
 
-- 400 Bad Request : Invalid input data
-- 404 Not Found : Resource not found
-- 500 Internal Server Error : Server-side error
+- 400 Bad Request: Invalid input data
+- 401 Unauthorized: Authentication required
+- 403 Forbidden: Insufficient permissions
+- 404 Not Found: Resource not found
+- 409 Conflict: Resource already exists (e.g., duplicate email)
+- 500 Internal Server Error: Server-side error
 ## Project Structure
 ```plaintext
 learning-rust/
 ├── data/                  # Seed data
-│   └── products.json      # Product seed data
+│   ├── products.json      # Product seed data
+│   └── users.json         # User seed data
 ├── migrations/            # Database migrations
 ├── src/
 │   ├── bin/               # Binary executables
@@ -229,31 +373,37 @@ learning-rust/
 │   │   ├── error.rs       # Error handling
 │   │   ├── mod.rs         # Module exports
 │   │   └── server.rs      # HTTP server setup
-│   ├── modules/            # Business modules
+│   ├── modules/           # Business modules
 │   │   ├── product/       # Product domain
 │   │   │   ├── model.rs   # Data models
 │   │   │   ├── repository.rs # Database operations
 │   │   │   ├── routes.rs  # HTTP routes
-│   │   │   ├── service.rs # Business logic
+│   │   │   ├── handler.rs # Request handlers
 │   │   │   └── mod.rs     # Module exports
-│   │   ├── user/          # User domain (future)
+│   │   ├── user/          # User domain
+│   │   │   ├── model.rs   # Data models
+│   │   │   ├── repository.rs # Database operations
+│   │   │   ├── routes.rs  # HTTP routes
+│   │   │   ├── handler.rs # Request handlers
+│   │   │   └── mod.rs     # Module exports
 │   │   └── mod.rs         # Module exports
 │   ├── seeder/            # Database seeders
 │   │   ├── product.rs     # Product seeder
+│   │   ├── user.rs        # User seeder
 │   │   └── mod.rs         # Module exports
 │   ├── utils/             # Utility functions
 │   │   └── mod.rs         # Utility functions
 │   ├── lib.rs             # Library exports
 │   └── main.rs            # Application entry point
 └── Cargo.toml             # Project dependencies
- ```
+
 ```
 
 ## Development
 ### Adding New Features
 1. Create appropriate models in the domain module
 2. Implement repository for database operations
-3. Create service layer for business logic
+3. Create handler for business logic
 4. Define routes for HTTP endpoints
 5. Register routes in the server module
 ### Running Tests
@@ -261,12 +411,19 @@ learning-rust/
 cargo test
  ```
 
+## Implemented Features
+- ✅ User authentication and authorization with JWT
+- ✅ Complete CRUD operations for products
+- ✅ Complete CRUD operations for users
+- ✅ Password hashing with Argon2
+- ✅ Database seeding for testing
+- ✅ Comprehensive error handling
 ## Future Enhancements
-- User authentication and authorization
 - API rate limiting
 - Caching layer
-- More comprehensive validation
-- Additional filtering options
+- Role-based access control
+- Email verification
+- Password reset functionality
 - Swagger/OpenAPI documentation
 - GraphQL API
 ## License
@@ -274,6 +431,5 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ```plaintext
 
-This README provides a comprehensive overview of your Rust product management API, including detailed API documentation, project structure, setup instructions, and future enhancement possibilities. It should give users and developers a clear understanding of what your application does and how to use it.
- ```
+The README has been updated to include comprehensive documentation for the new user authentication features, including all the endpoints, request/response formats, and updated project structure. I've also added information about the JWT authentication, password hashing, and updated the technology stack and feature list.
 ```
