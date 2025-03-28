@@ -2,9 +2,10 @@ use crate::core::db::DbPool;
 use crate::core::error::ApiError;
 use crate::modules::product::model::{CreateProduct, Product, ProductFilter, UpdateProduct};
 use crate::utils::offset_to_chrono;
-use sqlx::{query, FromRow, postgres::PgRow, Row};
+use sqlx::{query, query_as, FromRow, postgres::PgRow, Row};
 use uuid::Uuid;
 use bigdecimal::BigDecimal;
+use std::str::FromStr;
 
 /// Repository for product database operations
 pub struct ProductRepository {
@@ -26,9 +27,9 @@ impl<'r> FromRow<'r, PgRow> for Product {
             }
         };
         
-        // Convert BigDecimal to f64
+        // Convert BigDecimal to f64 more efficiently
         let price_decimal: BigDecimal = row.try_get("price")?;
-        let price = price_decimal.to_string().parse::<f64>().unwrap_or(0.0);
+        let price = f64::from_str(&price_decimal.to_string()).unwrap_or(0.0);
         
         // Get remaining fields
         Ok(Product {
@@ -46,8 +47,8 @@ impl<'r> FromRow<'r, PgRow> for Product {
 }
 
 // SQL query constants
-const SELECT_PRODUCT_FIELDS: &str = "id, name, description, price, stock, category, is_active, created_at, updated_at";
-const SELECT_PRODUCT_BASE: &str = "SELECT id, name, description, price, stock, category, is_active, created_at, updated_at FROM products";
+static SELECT_PRODUCT_FIELDS: &str = "id, name, description, price, stock, category, is_active, created_at, updated_at";
+static SELECT_PRODUCT_BASE: &str = "SELECT id, name, description, price, stock, category, is_active, created_at, updated_at FROM products";
 
 impl ProductRepository {
     /// Create a new product repository
@@ -57,44 +58,34 @@ impl ProductRepository {
     
     /// Create a new product in the database
     pub async fn create(&self, product: &CreateProduct) -> Result<Product, ApiError> {
-        let row = query(
-            &format!(
-                r#"
-                INSERT INTO products (name, description, price, stock, category)
-                VALUES ($1, $2, $3, $4, $5)
-                RETURNING {SELECT_PRODUCT_FIELDS}
-                "#
-            ),
-        )
-        .bind(&product.name)
-        .bind(product.description.as_deref())  
-        .bind(product.price)
-        .bind(product.stock.unwrap_or(0))
-        .bind(product.category.as_deref())  
-        .fetch_one(&self.pool)
-        .await
-        .map_err(ApiError::Database)?;
+        let query_str = format!(
+            "INSERT INTO products (name, description, price, stock, category) 
+            VALUES ($1, $2, $3, $4, $5) 
+            RETURNING {SELECT_PRODUCT_FIELDS}"
+        );
         
-        Product::from_row(&row).map_err(ApiError::Database)
+        query(&query_str)
+            .bind(&product.name)
+            .bind(product.description.as_deref())  
+            .bind(product.price)
+            .bind(product.stock.unwrap_or(0))
+            .bind(product.category.as_deref())  
+            .fetch_one(&self.pool)
+            .await
+            .map_err(ApiError::Database)
+            .and_then(|row| Product::from_row(&row).map_err(ApiError::Database))
     }
     
     /// Get a product by ID
     pub async fn find_by_id(&self, id: Uuid) -> Result<Product, ApiError> {
-        let row = query(
-            &format!(
-                r#"
-                {SELECT_PRODUCT_BASE}
-                WHERE id = $1
-                "#
-            ),
-        )
-        .bind(id)
-        .fetch_optional(&self.pool)
-        .await
-        .map_err(ApiError::Database)?
-        .ok_or_else(|| ApiError::NotFound(format!("Product with ID {} not found", id)))?;
+        let query_str = format!("{SELECT_PRODUCT_BASE} WHERE id = $1");
         
-        Product::from_row(&row).map_err(ApiError::Database)
+        query_as::<_, Product>(&query_str)
+            .bind(id)
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(ApiError::Database)?
+            .ok_or_else(|| ApiError::NotFound(format!("Product with ID {} not found", id)))
     }
     
     /// List products with optional filtering
@@ -143,19 +134,12 @@ impl ProductRepository {
             query_builder.push_bind(offset);
         }
         
-        // Execute query and convert results
-        let rows = query_builder
-            .build()
+        // Execute query and convert results directly to Product structs
+        query_builder
+            .build_query_as::<Product>()
             .fetch_all(&self.pool)
             .await
-            .map_err(ApiError::Database)?;
-            
-        let mut products = Vec::with_capacity(rows.len());
-        for row in rows {
-            products.push(Product::from_row(&row).map_err(ApiError::Database)?);
-        }
-            
-        Ok(products)
+            .map_err(ApiError::Database)
     }
     
     /// Update an existing product
@@ -163,62 +147,43 @@ impl ProductRepository {
         let mut tx = self.pool.begin().await.map_err(ApiError::Database)?;
         
         // Check if product exists and get current values
-        let row = query(
-            &format!(
-                r#"
-                {SELECT_PRODUCT_BASE}
-                WHERE id = $1
-                FOR UPDATE
-                "#
-            ),
-        )
-        .bind(id)
-        .fetch_optional(&mut *tx)
-        .await
-        .map_err(ApiError::Database)?
-        .ok_or_else(|| ApiError::NotFound(format!("Product with ID {} not found", id)))?;
+        let query_str = format!("{SELECT_PRODUCT_BASE} WHERE id = $1 FOR UPDATE");
         
-        let current = Product::from_row(&row).map_err(ApiError::Database)?;
+        let current = query_as::<_, Product>(&query_str)
+            .bind(id)
+            .fetch_optional(&mut *tx)
+            .await
+            .map_err(ApiError::Database)?
+            .ok_or_else(|| ApiError::NotFound(format!("Product with ID {} not found", id)))?;
         
-        // Prepare update values
+        // Prepare update values using more concise approach
         let name = update.name.as_ref().unwrap_or(&current.name);
-        let description_str = match (&update.description, &current.description) {
-            (Some(desc), _) => Some(desc.as_str()),
-            (None, Some(desc)) => Some(desc.as_str()),
-            (None, None) => None,
-        };
+        let description_str = update.description.as_deref().or_else(|| current.description.as_deref());
         let price = update.price.unwrap_or(current.price);
         let stock = update.stock.unwrap_or(current.stock);
-        let category_str = match (&update.category, &current.category) {
-            (Some(cat), _) => Some(cat.as_str()),
-            (None, Some(cat)) => Some(cat.as_str()),
-            (None, None) => None,
-        };
+        let category_str = update.category.as_deref().or_else(|| current.category.as_deref());
         let is_active = update.is_active.unwrap_or(current.is_active);
         
         // Execute update
-        let row = query(
-            &format!(
-                r#"
-                UPDATE products
-                SET name = $1, description = $2, price = $3, stock = $4, category = $5, is_active = $6, updated_at = NOW()
-                WHERE id = $7
-                RETURNING {SELECT_PRODUCT_FIELDS}
-                "#
-            ),
-        )
-        .bind(name)
-        .bind(description_str)
-        .bind(price)
-        .bind(stock)
-        .bind(category_str)
-        .bind(is_active)
-        .bind(id)
-        .fetch_one(&mut *tx)
-        .await
-        .map_err(ApiError::Database)?;
+        let query_str = format!(
+            "UPDATE products
+            SET name = $1, description = $2, price = $3, stock = $4, category = $5, is_active = $6, updated_at = NOW()
+            WHERE id = $7
+            RETURNING {SELECT_PRODUCT_FIELDS}"
+        );
         
-        let updated = Product::from_row(&row).map_err(ApiError::Database)?;
+        let updated = query_as::<_, Product>(&query_str)
+            .bind(name)
+            .bind(description_str)
+            .bind(price)
+            .bind(stock)
+            .bind(category_str)
+            .bind(is_active)
+            .bind(id)
+            .fetch_one(&mut *tx)
+            .await
+            .map_err(ApiError::Database)?;
+        
         tx.commit().await.map_err(ApiError::Database)?;
         
         Ok(updated)
@@ -226,16 +191,11 @@ impl ProductRepository {
     
     /// Delete a product by ID
     pub async fn delete(&self, id: Uuid) -> Result<(), ApiError> {
-        let result = query(
-            r#"
-            DELETE FROM products
-            WHERE id = $1
-            "#,
-        )
-        .bind(id)
-        .execute(&self.pool)
-        .await
-        .map_err(ApiError::Database)?;
+        let result = query("DELETE FROM products WHERE id = $1")
+            .bind(id)
+            .execute(&self.pool)
+            .await
+            .map_err(ApiError::Database)?;
         
         if result.rows_affected() == 0 {
             return Err(ApiError::NotFound(format!("Product with ID {} not found", id)));

@@ -1,5 +1,5 @@
 use crate::core::db::DbPool;
-use crate::modules::user::handler::UserHandler;
+use crate::modules::user::service::UserHandler;
 use crate::modules::user::model::{CreateUser, LoginUser, UserFilter, UpdateUser};
 use crate::modules::user::repository::UserRepository;
 use axum::{
