@@ -273,7 +273,6 @@ Request Body:
   "stock": 10,
   "category": "Category"
 }
- ```
 ```
 
 Response:
@@ -337,7 +336,6 @@ Response:
   "success": true,
   "message": "Product with ID {id} successfully deleted"
 }
- ```
 ```
 
 ### Error Responses
