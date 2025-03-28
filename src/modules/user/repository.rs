@@ -2,7 +2,7 @@ use crate::core::db::DbPool;
 use crate::core::error::ApiError;
 use crate::modules::user::model::{CreateUser, User, UserFilter, UpdateUser};
 use crate::utils::offset_to_chrono;
-use sqlx::{query, FromRow, postgres::PgRow, Row};
+use sqlx::{query, query_as, FromRow, postgres::PgRow, Row};
 use uuid::Uuid;
 use argon2::{
     password_hash::{
@@ -31,9 +31,9 @@ impl<'r> FromRow<'r, PgRow> for User {
     }
 }
 
-// SQL query constants
-const SELECT_USER_FIELDS: &str = "id, username, email, password, created_at, updated_at";
-const SELECT_USER_BASE: &str = "SELECT id, username, email, password, created_at, updated_at FROM users";
+// SQL query constants - using static str to avoid allocations
+static SELECT_USER_FIELDS: &str = "id, username, email, password, created_at, updated_at";
+static SELECT_USER_BASE: &str = "SELECT id, username, email, password, created_at, updated_at FROM users";
 
 impl UserRepository {
     /// Create a new user repository
@@ -46,75 +46,47 @@ impl UserRepository {
         // Hash the password
         let password_hash = self.hash_password(&user.password)?;
         
-        let row = query(
-            &format!(
-                r#"
-                INSERT INTO users (username, email, password)
-                VALUES ($1, $2, $3)
-                RETURNING {SELECT_USER_FIELDS}
-                "#
-            ),
-        )
-        .bind(&user.username)
-        .bind(&user.email)
-        .bind(&password_hash)
-        .fetch_one(&self.pool)
-        .await
-        .map_err(|e| {
-            if e.to_string().contains("duplicate key") {
-                if e.to_string().contains("idx_users_email") {
-                    return ApiError::BadRequest("Email already in use".to_string());
-                } else if e.to_string().contains("idx_users_username") {
-                    return ApiError::BadRequest("Username already in use".to_string());
-                }
-            }
-            ApiError::Database(e)
-        })?;
+        let query_str = format!(
+            "INSERT INTO users (username, email, password) VALUES ($1, $2, $3) RETURNING {SELECT_USER_FIELDS}"
+        );
         
-        User::from_row(&row).map_err(ApiError::Database)
+        query(&query_str)
+            .bind(&user.username)
+            .bind(&user.email)
+            .bind(&password_hash)
+            .fetch_one(&self.pool)
+            .await
+            .map_err(|e| self.handle_db_error(e))
+            .and_then(|row| User::from_row(&row).map_err(ApiError::Database))
     }
     
     /// Find a user by ID
     pub async fn find_by_id(&self, id: Uuid) -> Result<User, ApiError> {
-        let row = query(
-            &format!(
-                r#"
-                {SELECT_USER_BASE}
-                WHERE id = $1
-                "#
-            ),
-        )
-        .bind(id)
-        .fetch_optional(&self.pool)
-        .await
-        .map_err(ApiError::Database)?
-        .ok_or_else(|| ApiError::NotFound(format!("User with ID {} not found", id)))?;
+        let query_str = format!("{SELECT_USER_BASE} WHERE id = $1");
         
-        User::from_row(&row).map_err(ApiError::Database)
+        query_as::<_, User>(&query_str)
+            .bind(id)
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(ApiError::Database)?
+            .ok_or_else(|| ApiError::NotFound(format!("User with ID {} not found", id)))
     }
     
     /// Find a user by email (for login)
     pub async fn find_by_email(&self, email: &str) -> Result<User, ApiError> {
-        let row = query(
-            &format!(
-                r#"
-                {SELECT_USER_BASE}
-                WHERE email = $1
-                "#
-            ),
-        )
-        .bind(email)
-        .fetch_optional(&self.pool)
-        .await
-        .map_err(ApiError::Database)?
-        .ok_or_else(|| ApiError::NotFound("Invalid email or password".to_string()))?;
+        let query_str = format!("{SELECT_USER_BASE} WHERE email = $1");
         
-        User::from_row(&row).map_err(ApiError::Database)
+        query_as::<_, User>(&query_str)
+            .bind(email)
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(ApiError::Database)?
+            .ok_or_else(|| ApiError::NotFound("Invalid email or password".to_string()))
     }
     
     /// List users with optional filtering
     pub async fn list(&self, filter: &UserFilter) -> Result<Vec<User>, ApiError> {
-        // Start building the dynamic SQL query
+        // Start building the dynamic SQL query with capacity hint
         let mut query_builder = sqlx::QueryBuilder::new(
             format!("{SELECT_USER_BASE} WHERE 1=1")
         );
@@ -144,18 +116,11 @@ impl UserRepository {
         }
         
         // Execute query and convert results
-        let rows = query_builder
-            .build()
+        query_builder
+            .build_query_as::<User>()
             .fetch_all(&self.pool)
             .await
-            .map_err(ApiError::Database)?;
-            
-        let mut users = Vec::with_capacity(rows.len());
-        for row in rows {
-            users.push(User::from_row(&row).map_err(ApiError::Database)?);
-        }
-            
-        Ok(users)
+            .map_err(ApiError::Database)
     }
     
     /// Update an existing user
@@ -163,22 +128,14 @@ impl UserRepository {
         let mut tx = self.pool.begin().await.map_err(ApiError::Database)?;
         
         // Check if user exists and get current values
-        let row = query(
-            &format!(
-                r#"
-                {SELECT_USER_BASE}
-                WHERE id = $1
-                FOR UPDATE
-                "#
-            ),
-        )
-        .bind(id)
-        .fetch_optional(&mut *tx)
-        .await
-        .map_err(ApiError::Database)?
-        .ok_or_else(|| ApiError::NotFound(format!("User with ID {} not found", id)))?;
+        let query_str = format!("{SELECT_USER_BASE} WHERE id = $1 FOR UPDATE");
         
-        let current = User::from_row(&row).map_err(ApiError::Database)?;
+        let current = query_as::<_, User>(&query_str)
+            .bind(id)
+            .fetch_optional(&mut *tx)
+            .await
+            .map_err(ApiError::Database)?
+            .ok_or_else(|| ApiError::NotFound(format!("User with ID {} not found", id)))?;
         
         // Prepare update values
         let username = update.username.as_ref().unwrap_or(&current.username);
@@ -187,38 +144,24 @@ impl UserRepository {
         // Hash password if provided
         let password = match &update.password {
             Some(new_password) => self.hash_password(new_password)?,
-            None => current.password,
+            None => current.password.clone(),
         };
         
         // Execute update
-        let row = query(
-            &format!(
-                r#"
-                UPDATE users
-                SET username = $1, email = $2, password = $3, updated_at = NOW()
-                WHERE id = $4
-                RETURNING {SELECT_USER_FIELDS}
-                "#
-            ),
-        )
-        .bind(username)
-        .bind(email)
-        .bind(&password)
-        .bind(id)
-        .fetch_one(&mut *tx)
-        .await
-        .map_err(|e| {
-            if e.to_string().contains("duplicate key") {
-                if e.to_string().contains("idx_users_email") {
-                    return ApiError::BadRequest("Email already in use".to_string());
-                } else if e.to_string().contains("idx_users_username") {
-                    return ApiError::BadRequest("Username already in use".to_string());
-                }
-            }
-            ApiError::Database(e)
-        })?;
+        let query_str = format!(
+            "UPDATE users SET username = $1, email = $2, password = $3, updated_at = NOW() 
+            WHERE id = $4 RETURNING {SELECT_USER_FIELDS}"
+        );
         
-        let updated = User::from_row(&row).map_err(ApiError::Database)?;
+        let updated = query_as::<_, User>(&query_str)
+            .bind(username)
+            .bind(email)
+            .bind(&password)
+            .bind(id)
+            .fetch_one(&mut *tx)
+            .await
+            .map_err(|e| self.handle_db_error(e))?;
+        
         tx.commit().await.map_err(ApiError::Database)?;
         
         Ok(updated)
@@ -226,16 +169,11 @@ impl UserRepository {
     
     /// Delete a user by ID
     pub async fn delete(&self, id: Uuid) -> Result<(), ApiError> {
-        let result = query(
-            r#"
-            DELETE FROM users
-            WHERE id = $1
-            "#,
-        )
-        .bind(id)
-        .execute(&self.pool)
-        .await
-        .map_err(ApiError::Database)?;
+        let result = query("DELETE FROM users WHERE id = $1")
+            .bind(id)
+            .execute(&self.pool)
+            .await
+            .map_err(ApiError::Database)?;
         
         if result.rows_affected() == 0 {
             return Err(ApiError::NotFound(format!("User with ID {} not found", id)));
@@ -249,18 +187,31 @@ impl UserRepository {
         let salt = SaltString::generate(&mut OsRng);
         let argon2 = Argon2::default();
         
-        let password_hash = argon2.hash_password(password.as_bytes(), &salt)
-            .map_err(|e| ApiError::Internal(format!("Password hashing error: {}", e)))?
-            .to_string();
-            
-        Ok(password_hash)
+        argon2.hash_password(password.as_bytes(), &salt)
+            .map(|hash| hash.to_string())
+            .map_err(|e| ApiError::Internal(format!("Password hashing error: {}", e)))
     }
     
     /// Verify a password against a hash
     pub fn verify_password(&self, password: &str, hash: &str) -> Result<bool, ApiError> {
-        let parsed_hash = PasswordHash::new(hash)
-            .map_err(|e| ApiError::Internal(format!("Password parsing error: {}", e)))?;
-            
-        Ok(Argon2::default().verify_password(password.as_bytes(), &parsed_hash).is_ok())
+        PasswordHash::new(hash)
+            .map_err(|e| ApiError::Internal(format!("Password parsing error: {}", e)))
+            .map(|parsed_hash| Argon2::default().verify_password(password.as_bytes(), &parsed_hash).is_ok())
+    }
+    
+    /// Handle database errors with common patterns
+    fn handle_db_error(&self, error: sqlx::Error) -> ApiError {
+        let error_string = error.to_string();
+        if error_string.contains("duplicate key") {
+            if error_string.contains("idx_users_email") {
+                ApiError::BadRequest("Email already in use".to_string())
+            } else if error_string.contains("idx_users_username") {
+                ApiError::BadRequest("Username already in use".to_string())
+            } else {
+                ApiError::Database(error)
+            }
+        } else {
+            ApiError::Database(error)
+        }
     }
 }

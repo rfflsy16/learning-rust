@@ -8,6 +8,8 @@ use jsonwebtoken::{encode, Header, EncodingKey, Algorithm};
 use chrono::{Utc, Duration};
 use serde::{Deserialize, Serialize};
 use std::env;
+use regex::Regex;
+use once_cell::sync::Lazy;
 
 /// JWT Claims structure
 #[derive(Debug, Serialize, Deserialize)]
@@ -16,6 +18,11 @@ struct Claims {
     exp: usize,          // Expiration time
     iat: usize,          // Issued at
 }
+
+// Email validation regex using Lazy static
+static EMAIL_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$").unwrap()
+});
 
 /// User HTTP request handlers
 pub struct UserHandler {
@@ -39,9 +46,7 @@ impl UserHandler {
         }
         
         // Validate password strength
-        if user.password.len() < 8 {
-            return Err(ApiError::BadRequest("Password must be at least 8 characters".to_string()));
-        }
+        self.validate_password(&user.password)?;
         
         // Validate username and email uniqueness
         self.validate_unique_fields(&user.username, &user.email).await?;
@@ -68,10 +73,8 @@ impl UserHandler {
             return Err(ApiError::Unauthorized("Invalid email or password".to_string()));
         }
         
-        // Generate JWT token
+        // Generate JWT token and create response
         let token = self.generate_token(user.id)?;
-        
-        // Create response
         let auth_response = AuthResponse {
             user: UserResponse::from(user),
             token,
@@ -121,17 +124,7 @@ impl UserHandler {
             
             // Only validate uniqueness if email is changing
             if email != &current_user.email {
-                let email_filter = UserFilter {
-                    username: None,
-                    email: Some(email.to_string()),
-                    limit: Some(1),
-                    offset: None,
-                };
-                
-                let email_exists = self.repository.list(&email_filter).await?;
-                if !email_exists.is_empty() {
-                    return Err(ApiError::BadRequest("Email already in use".to_string()));
-                }
+                self.check_field_exists(None, Some(email)).await?;
             }
         }
         
@@ -139,25 +132,13 @@ impl UserHandler {
         if let Some(ref username) = update.username {
             // Only validate uniqueness if username is changing
             if username != &current_user.username {
-                let username_filter = UserFilter {
-                    username: Some(username.to_string()),
-                    email: None,
-                    limit: Some(1),
-                    offset: None,
-                };
-                
-                let username_exists = self.repository.list(&username_filter).await?;
-                if !username_exists.is_empty() {
-                    return Err(ApiError::BadRequest("Username already in use".to_string()));
-                }
+                self.check_field_exists(Some(username), None).await?;
             }
         }
         
         // Validate password if provided
         if let Some(ref password) = update.password {
-            if password.len() < 8 {
-                return Err(ApiError::BadRequest("Password must be at least 8 characters".to_string()));
-            }
+            self.validate_password(password)?;
         }
         
         let updated_user = self.repository.update(id, &update).await?;
@@ -182,65 +163,63 @@ impl UserHandler {
     
     /// Validate that username and email are unique
     async fn validate_unique_fields(&self, username: &str, email: &str) -> Result<(), ApiError> {
-        // Check if username exists
-        let username_filter = UserFilter {
-            username: Some(username.to_string()),
-            email: None,
+        // Check username and email existence
+        self.check_field_exists(Some(username), None).await?;
+        self.check_field_exists(None, Some(email)).await?;
+        
+        Ok(())
+    }
+    
+    /// Helper method to check if a field exists
+    async fn check_field_exists(&self, username: Option<&str>, email: Option<&str>) -> Result<(), ApiError> {
+        let filter = UserFilter {
+            username: username.map(ToString::to_string),
+            email: email.map(ToString::to_string),
             limit: Some(1),
             offset: None,
         };
         
-        let username_exists = self.repository.list(&username_filter).await?;
-        if !username_exists.is_empty() {
-            return Err(ApiError::BadRequest("Username already in use".to_string()));
-        }
-        
-        // Check if email exists
-        let email_filter = UserFilter {
-            username: None,
-            email: Some(email.to_string()),
-            limit: Some(1),
-            offset: None,
-        };
-        
-        let email_exists = self.repository.list(&email_filter).await?;
-        if !email_exists.is_empty() {
-            return Err(ApiError::BadRequest("Email already in use".to_string()));
+        let exists = self.repository.list(&filter).await?;
+        if !exists.is_empty() {
+            let field_name = if username.is_some() { "Username" } else { "Email" };
+            return Err(ApiError::BadRequest(format!("{} already in use", field_name)));
         }
         
         Ok(())
     }
     
-    // Helper method to validate email format
-    fn is_valid_email(&self, email: &str) -> bool {
-        // Basic email validation
-        email.contains('@') && email.contains('.')
+    /// Validate password strength
+    fn validate_password(&self, password: &str) -> Result<(), ApiError> {
+        if password.len() < 8 {
+            return Err(ApiError::BadRequest("Password must be at least 8 characters".to_string()));
+        }
+        Ok(())
     }
     
-    // Generate JWT token
+    /// Helper method to validate email format
+    fn is_valid_email(&self, email: &str) -> bool {
+        EMAIL_REGEX.is_match(email)
+    }
+    
+    /// Generate JWT token
     fn generate_token(&self, user_id: Uuid) -> Result<String, ApiError> {
         // Get JWT secret from environment or use default
         let jwt_secret = env::var("JWT_SECRET").unwrap_or_else(|_| "default_jwt_secret".to_string());
         
         // Create claims
         let now = Utc::now();
-        let iat = now.timestamp() as usize;
-        let exp = (now + Duration::hours(24)).timestamp() as usize; // Token valid for 24 hours
-        
         let claims = Claims {
             sub: user_id.to_string(),
-            iat,
-            exp,
+            iat: now.timestamp() as usize,
+            exp: (now + Duration::hours(24)).timestamp() as usize, // Token valid for 24 hours
         };
         
         // Encode token
-        let token = encode(
+        encode(
             &Header::new(Algorithm::HS256),
             &claims,
             &EncodingKey::from_secret(jwt_secret.as_bytes()),
         )
-        .map_err(|e| ApiError::Internal(format!("Token generation error: {}", e)))?;
-        
-        Ok(token)
+        .map_err(|e| ApiError::Internal(format!("Token generation error: {}", e)))
     }
 }
