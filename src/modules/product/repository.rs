@@ -23,7 +23,7 @@ impl<'r> FromRow<'r, PgRow> for Product {
             Ok(desc) => desc,
             Err(e) => {
                 tracing::warn!("Error getting description field: {}", e);
-                None // Fallback to None if there's an error
+                None 
             }
         };
         
