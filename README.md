@@ -126,7 +126,6 @@ Response:
  ```
 ```
  Get User by ID
-```plaintext
 GET /api/users/{id}
  ```
 
@@ -143,7 +142,6 @@ Response:
  ```
 ```
  List Users
-```plaintext
 GET /api/users
  ```
 
@@ -168,7 +166,6 @@ Response:
  ```
 ```
  Update User
-```plaintext
 PUT /api/users/{id}
  ```
 
@@ -209,8 +206,7 @@ Response:
  ```
 ```
 
-### Product Endpoints List Products
-```plaintext
+ Product Endpoints List Products
 GET /api/products
  ```
 
@@ -306,7 +302,6 @@ Request Body (all fields optional):
   "category": "Updated Category",
   "is_active": true
 }
- ```
 ```
 
 Response:
