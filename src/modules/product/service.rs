@@ -6,11 +6,11 @@ use serde_json::json;
 use uuid::Uuid;
 
 /// Product HTTP request handlers
-pub struct ProductHandler {
+pub struct ProductService {
     repository: ProductRepository,   // Product repository for database operations
 }
 
-impl ProductHandler {
+impl ProductService {
     /// Create a new product handler
     pub fn new(repository: ProductRepository) -> Self {
         Self { repository }

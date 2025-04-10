@@ -13,11 +13,11 @@ static EMAIL_REGEX: Lazy<Regex> = Lazy::new(|| {
 });
 
 /// User HTTP request handlers
-pub struct UserHandler {
+pub struct UserService {
     repository: UserRepository,   // User repository for database operations
 }
 
-impl UserHandler {
+impl UserService {
     /// Create a new user handler
     pub fn new(repository: UserRepository) -> Self {
         Self { repository }

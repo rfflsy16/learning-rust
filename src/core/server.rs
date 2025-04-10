@@ -18,7 +18,7 @@ use crate::{
     },
 };
 
-const ALLOWED_ORIGINS: [&str; 1] = ["http://localhost:3000"];
+const ALLOWED_ORIGINS: [&str; 1] = ["http://localhost:8080"];
 const ALLOWED_HEADERS: [&str; 2] = ["content-type", "authorization"];
 
 /// Start the HTTP server

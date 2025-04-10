@@ -1,5 +1,5 @@
 use crate::core::db::DbPool;
-use crate::modules::user::service::UserHandler;
+use crate::modules::user::service::UserService;
 use crate::modules::user::model::{CreateUser, LoginUser, UserFilter, UpdateUser};
 use crate::modules::user::repository::UserRepository;
 use axum::{
@@ -12,13 +12,13 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 /// Type alias for the shared state
-type SharedHandler = Arc<UserHandler>;
+type SharedHandler = Arc<UserService>;
 
 /// Create user routes
 pub fn user_routes(pool: DbPool) -> Router {
     // Create repository and handler
     let repository = UserRepository::new(pool);
-    let handler = Arc::new(UserHandler::new(repository));
+    let handler = Arc::new(UserService::new(repository));
     
     // Define routes with shared state
     Router::new()

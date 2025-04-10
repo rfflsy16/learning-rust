@@ -1,5 +1,5 @@
 use crate::core::db::DbPool;
-use crate::modules::product::service::ProductHandler;
+use crate::modules::product::service::ProductService;
 use crate::modules::product::model::{CreateProduct, ProductFilter, UpdateProduct};
 use crate::modules::product::repository::ProductRepository;
 use axum::{
@@ -12,13 +12,13 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 /// Type alias for the shared state
-type SharedHandler = Arc<ProductHandler>;
+type SharedHandler = Arc<ProductService>;
 
 /// Create product routes
 pub fn product_routes(pool: DbPool) -> Router {
     // Create repository and handler
     let repository = ProductRepository::new(pool);
-    let handler = Arc::new(ProductHandler::new(repository));
+    let handler = Arc::new(ProductService::new(repository));
     
     // Define routes with shared state
     Router::new()
