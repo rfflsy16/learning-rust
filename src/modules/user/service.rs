@@ -4,21 +4,9 @@ use crate::modules::user::repository::UserRepository;
 use axum::{http::StatusCode, response::IntoResponse, Json};
 use serde_json::json;
 use uuid::Uuid;
-use jsonwebtoken::{encode, Header, EncodingKey, Algorithm};
-use chrono::{Utc, Duration};
-use serde::{Deserialize, Serialize};
-use std::env;
 use regex::Regex;
 use once_cell::sync::Lazy;
-
-/// JWT Claims structure
-#[derive(Debug, Serialize, Deserialize)]
-struct Claims {
-    sub: String,         // Subject (user ID)
-    exp: usize,          // Expiration time
-    iat: usize,          // Issued at
-}
-
+use crate::utils::generate_token;
 // Email validation regex using Lazy static
 static EMAIL_REGEX: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$").unwrap()
@@ -74,7 +62,7 @@ impl UserHandler {
         }
         
         // Generate JWT token and create response
-        let token = self.generate_token(user.id)?;
+        let token = generate_token(user.id)?;
         let auth_response = AuthResponse {
             user: UserResponse::from(user),
             token,
@@ -199,27 +187,5 @@ impl UserHandler {
     /// Helper method to validate email format
     fn is_valid_email(&self, email: &str) -> bool {
         EMAIL_REGEX.is_match(email)
-    }
-    
-    /// Generate JWT token
-    fn generate_token(&self, user_id: Uuid) -> Result<String, ApiError> {
-        // Get JWT secret from environment or use default
-        let jwt_secret = env::var("JWT_SECRET").unwrap_or_else(|_| "default_jwt_secret".to_string());
-        
-        // Create claims
-        let now = Utc::now();
-        let claims = Claims {
-            sub: user_id.to_string(),
-            iat: now.timestamp() as usize,
-            exp: (now + Duration::hours(24)).timestamp() as usize, // Token valid for 24 hours
-        };
-        
-        // Encode token
-        encode(
-            &Header::new(Algorithm::HS256),
-            &claims,
-            &EncodingKey::from_secret(jwt_secret.as_bytes()),
-        )
-        .map_err(|e| ApiError::Internal(format!("Token generation error: {}", e)))
     }
 }

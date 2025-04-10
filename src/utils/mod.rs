@@ -1,8 +1,9 @@
 /// Utilities module for common functions
-
 use chrono::{DateTime, TimeZone, Utc};
-// Use the external time crate explicitly
 use ::time::OffsetDateTime;
+
+mod jwt;
+pub use jwt::generate_token;
 
 /// Convert OffsetDateTime to chrono's DateTime<Utc>
 pub fn offset_to_chrono(dt: OffsetDateTime) -> DateTime<Utc> {
