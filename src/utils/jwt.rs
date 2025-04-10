@@ -15,7 +15,7 @@ struct Claims {
 
 pub fn generate_token(user_id: Uuid) -> Result<String, ApiError> {
     // Get JWT secret from environment or use default
-    let jwt_secret = env::var("JWT_SECRET").unwrap_or_else(|_| "default_jwt_secret".to_string());
+    let jwt_secret = env::var("JWT_SECRET").unwrap_or_else(|_| "".to_string());
     
     // Create claims
     let now = Utc::now();

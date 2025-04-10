@@ -2,7 +2,7 @@ use axum::{
     http::{Method, HeaderName, HeaderValue},
     Router,
 };
-use std::str::FromStr;
+use std::{env, str::FromStr};
 use sqlx::PgPool;
 use tower_http::{
     cors::CorsLayer,
@@ -18,7 +18,6 @@ use crate::{
     },
 };
 
-const ALLOWED_ORIGINS: [&str; 1] = ["http://localhost:8080"];
 const ALLOWED_HEADERS: [&str; 2] = ["content-type", "authorization"];
 
 /// Start the HTTP server
@@ -46,12 +45,26 @@ fn create_router(pool: PgPool) -> Router {
 
 /// Create CORS layer with configured restrictions
 fn create_cors_layer() -> CorsLayer {
-    let allowed_origins: Vec<HeaderValue> = ALLOWED_ORIGINS
+    let allowed_origins_str = env::var("ALLOWED_ORIGINS").unwrap_or_else(|_| "".to_string());
+
+    let origins: Vec<&str> = allowed_origins_str.split(',')
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .collect();
+
+    let allowed_origins: Vec<HeaderValue> = origins
         .iter()
         .filter_map(|origin| {
-            let header_value = origin.parse::<HeaderValue>().ok()?;
-            tracing::info!("Allowing CORS origin: {}", origin);
-            Some(header_value)
+            match origin.parse::<HeaderValue>() {
+                Ok(header_value) => {
+                    tracing::info!("Allowing CORS origin: {}", origin);
+                    Some(header_value)
+                },
+                Err(e) => {
+                    tracing::warn!("Failed to parse CORS origin '{}': {}", origin, e);
+                    None
+                }
+            }
         })
         .collect();
 
