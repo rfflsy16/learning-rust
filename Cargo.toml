@@ -2,6 +2,7 @@
 name = "learning_rust"
 version = "0.1.0"
 edition = "2024"
+default-run = "learning_rust"  # Tambahin ini
 
 [dependencies]
 axum = "0.8.1"                                     # Web framework
