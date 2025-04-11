@@ -1,12 +1,12 @@
 use crate::core::db::DbPool;
-use crate::modules::user::service::UserService;
-use crate::modules::user::model::{CreateUser, LoginUser, UserFilter, UpdateUser};
+use crate::modules::user::model::{CreateUser, LoginUser, UpdateUser, UserFilter};
 use crate::modules::user::repository::UserRepository;
+use crate::modules::user::service::UserService;
 use axum::{
+    Json, Router,
     extract::{Path, Query, State},
     response::IntoResponse,
     routing::{get, post},
-    Json, Router,
 };
 use std::sync::Arc;
 use uuid::Uuid;
@@ -19,21 +19,15 @@ pub fn user_routes(pool: DbPool) -> Router {
     // Create repository and handler
     let repository = UserRepository::new(pool);
     let handler = Arc::new(UserService::new(repository));
-    
+
     // Define routes with shared state
     Router::new()
-        .route("/api/users", 
-            get(list_users)
-            .post(register_user)
+        .route("/api/users", get(list_users).post(register_user))
+        .route(
+            "/api/users/{id}",
+            get(get_user).put(update_user).delete(delete_user),
         )
-        .route("/api/users/{id}",
-            get(get_user)
-            .put(update_user)
-            .delete(delete_user)
-        )
-        .route("/api/auth/login",
-            post(login_user)
-        )
+        .route("/api/auth/login", post(login_user))
         .with_state(handler)
 }
 
@@ -42,32 +36,37 @@ async fn list_users(
     State(handler): State<SharedHandler>,
     Query(filter): Query<UserFilter>,
 ) -> impl IntoResponse {
-    handler.list_users(filter).await
-        .map_or_else(|err| err.into_response(), |response| response.into_response())
+    handler.list_users(filter).await.map_or_else(
+        |err| err.into_response(),
+        |response| response.into_response(),
+    )
 }
 
 async fn register_user(
     State(handler): State<SharedHandler>,
     Json(user): Json<CreateUser>,
 ) -> impl IntoResponse {
-    handler.register(user).await
-        .map_or_else(|err| err.into_response(), |response| response.into_response())
+    handler.register(user).await.map_or_else(
+        |err| err.into_response(),
+        |response| response.into_response(),
+    )
 }
 
 async fn login_user(
     State(handler): State<SharedHandler>,
     Json(login): Json<LoginUser>,
 ) -> impl IntoResponse {
-    handler.login(login).await
-        .map_or_else(|err| err.into_response(), |response| response.into_response())
+    handler.login(login).await.map_or_else(
+        |err| err.into_response(),
+        |response| response.into_response(),
+    )
 }
 
-async fn get_user(
-    State(handler): State<SharedHandler>,
-    Path(id): Path<Uuid>,
-) -> impl IntoResponse {
-    handler.get_user(id).await
-        .map_or_else(|err| err.into_response(), |response| response.into_response())
+async fn get_user(State(handler): State<SharedHandler>, Path(id): Path<Uuid>) -> impl IntoResponse {
+    handler.get_user(id).await.map_or_else(
+        |err| err.into_response(),
+        |response| response.into_response(),
+    )
 }
 
 async fn update_user(
@@ -75,14 +74,18 @@ async fn update_user(
     Path(id): Path<Uuid>,
     Json(update): Json<UpdateUser>,
 ) -> impl IntoResponse {
-    handler.update_user(id, update).await
-        .map_or_else(|err| err.into_response(), |response| response.into_response())
+    handler.update_user(id, update).await.map_or_else(
+        |err| err.into_response(),
+        |response| response.into_response(),
+    )
 }
 
 async fn delete_user(
     State(handler): State<SharedHandler>,
     Path(id): Path<Uuid>,
 ) -> impl IntoResponse {
-    handler.delete_user(id).await
-        .map_or_else(|err| err.into_response(), |response| response.into_response())
+    handler.delete_user(id).await.map_or_else(
+        |err| err.into_response(),
+        |response| response.into_response(),
+    )
 }

@@ -40,11 +40,11 @@ pub struct UpdateProduct {
 /// Filter criteria for querying products
 #[derive(Debug, Deserialize)]
 pub struct ProductFilter {
-    pub name: Option<String>,        // Filter by name (partial match)
-    pub category: Option<String>,    // Filter by category (exact match)
-    pub min_price: Option<f64>,      // Filter by minimum price
-    pub max_price: Option<f64>,      // Filter by maximum price
-    pub is_active: Option<bool>,     // Filter by active status
-    pub limit: Option<i64>,          // Maximum number of results
-    pub offset: Option<i64>,         // Number of results to skip
+    pub name: Option<String>,     // Filter by name (partial match)
+    pub category: Option<String>, // Filter by category (exact match)
+    pub min_price: Option<f64>,   // Filter by minimum price
+    pub max_price: Option<f64>,   // Filter by maximum price
+    pub is_active: Option<bool>,  // Filter by active status
+    pub limit: Option<i64>,       // Maximum number of results
+    pub offset: Option<i64>,      // Number of results to skip
 }
