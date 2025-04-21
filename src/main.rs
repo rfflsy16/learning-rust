@@ -29,12 +29,8 @@ async fn main() -> anyhow::Result<()> {
     let db_pool = init_db(&config.database_url).await?;
     tracing::info!("Database connection established");
 
-    // Optional: Run seeders in development
-    #[cfg(debug_assertions)]
-    {
-        tracing::info!("Running seeders in development mode");
-        seeder::run_all_seeders(&db_pool).await?;
-    }
+    tracing::info!("Running seeders in development mode");
+    seeder::run_all_seeders(&db_pool).await?;
 
     // Run server
     run_server(config, db_pool).await?;
