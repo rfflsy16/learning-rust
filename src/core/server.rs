@@ -2,13 +2,14 @@ use anyhow::Result;
 use axum::{
     Router,
     http::{HeaderName, HeaderValue, Method},
+    middleware,
 };
 use sqlx::PgPool;
 use std::{env, str::FromStr};
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 
 use crate::{
-    core::config::Config,
+    core::{config::Config, authentication::auth_middleware},
     modules::{product::routes::product_routes, user::routes::user_routes},
 };
 
@@ -37,6 +38,7 @@ fn create_router(pool: PgPool) -> Router {
     Router::new()
         .merge(product_routes(pool.clone()))
         .merge(user_routes(pool))
+        .layer(middleware::from_fn(auth_middleware))
         .layer(TraceLayer::new_for_http())
         .layer(cors)
 }
