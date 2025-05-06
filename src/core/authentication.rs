@@ -1,15 +1,13 @@
-use std::env;
 use axum::{
     extract::Request,
-    http::{header, StatusCode},
+    http::header,
     middleware::Next,
     response::{IntoResponse, Response},
-    Json,
 };
-use jsonwebtoken::{decode, DecodingKey, Algorithm, Validation};
 use serde::{Deserialize, Serialize};
-use tracing::{error, info};
-use uuid::Uuid;
+use tracing::info;
+use crate::utils::verify_token;
+use crate::core::error::ApiError;
 
 /// Struktur klaim JWT untuk dekoding token
 #[derive(Debug, Serialize, Deserialize)]
@@ -37,13 +35,13 @@ pub async fn auth_middleware(req: Request, next: Next) -> Response {
             if auth_value.starts_with("Bearer ") {
                 &auth_value[7..]
             } else {
-                return handle_unauthorized("Invalid authorization format".to_string());
+                return ApiError::Unauthorized("Invalid authorization format".to_string()).into_response();
             }
         }
-        None => return handle_unauthorized("Missing authorization header".to_string()),
+        None => return ApiError::Unauthorized("Missing authorization header".to_string()).into_response(),
     };
 
-    // Verifikasi token
+    // Verifikasi token dgn fungsi dari utils
     match verify_token(token) {
         Ok(user_id) => {
             info!("Authorized user: {}", user_id);
@@ -52,47 +50,6 @@ pub async fn auth_middleware(req: Request, next: Next) -> Response {
             modified_req.extensions_mut().insert(user_id);
             next.run(modified_req).await
         }
-        Err(error_msg) => handle_unauthorized(error_msg),
+        Err(error) => ApiError::Unauthorized(error.to_string()).into_response(),
     }
-}
-
-/// Verifikasi token JWT dan ekstrak user ID
-fn verify_token(token: &str) -> Result<Uuid, String> {
-    // Ambil JWT secret dari environment
-    let jwt_secret = env::var("JWT_SECRET").unwrap_or_else(|_| "".to_string());
-    
-    if jwt_secret.is_empty() {
-        error!("JWT_SECRET not set in environment");
-        return Err("Server configuration error".to_string());
-    }
-
-    // Decode token
-    let token_data = match decode::<Claims>(
-        token,
-        &DecodingKey::from_secret(jwt_secret.as_bytes()),
-        &Validation::new(Algorithm::HS256),
-    ) {
-        Ok(data) => data,
-        Err(err) => {
-            error!("Token validation error: {}", err);
-            return Err("Invalid token".to_string());
-        }
-    };
-
-    // Parse user ID dari subject token
-    let user_id = match Uuid::parse_str(&token_data.claims.sub) {
-        Ok(id) => id,
-        Err(_) => return Err("Invalid user ID in token".to_string()),
-    };
-
-    Ok(user_id)
-}
-
-/// Helper untuk response unauthorized yg konsisten
-fn handle_unauthorized(message: String) -> Response {
-    let body = Json(serde_json::json!({
-        "error": message
-    }));
-    
-    (StatusCode::UNAUTHORIZED, body).into_response()
 }

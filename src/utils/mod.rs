@@ -3,7 +3,7 @@ use ::time::OffsetDateTime;
 use chrono::{DateTime, TimeZone, Utc};
 
 mod jwt;
-pub use jwt::generate_token;
+pub use jwt::{generate_token, verify_token};
 
 /// Convert OffsetDateTime to chrono's DateTime<Utc>
 pub fn offset_to_chrono(dt: OffsetDateTime) -> DateTime<Utc> {
