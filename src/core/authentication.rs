@@ -1,3 +1,5 @@
+use crate::core::error::ApiError;
+use crate::utils::verify_token;
 use axum::{
     extract::Request,
     http::header,
@@ -6,15 +8,13 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use tracing::info;
-use crate::utils::verify_token;
-use crate::core::error::ApiError;
 
 /// Struktur klaim JWT untuk dekoding token
 #[derive(Debug, Serialize, Deserialize)]
 struct Claims {
-    sub: String,  // User ID
-    exp: usize,   // Waktu kedaluwarsa
-    iat: usize,   // Waktu diterbitkan
+    sub: String, // User ID
+    exp: usize,  // Waktu kedaluwarsa
+    iat: usize,  // Waktu diterbitkan
 }
 
 /// Middleware untuk autentikasi token JWT
@@ -27,7 +27,7 @@ pub async fn auth_middleware(req: Request, next: Next) -> Response {
 
     // Ambil token dari header Authorization
     let auth_header = req.headers().get(header::AUTHORIZATION);
-    
+
     let token = match auth_header {
         Some(value) => {
             let auth_value = value.to_str().unwrap_or_default();
@@ -35,10 +35,14 @@ pub async fn auth_middleware(req: Request, next: Next) -> Response {
             if auth_value.starts_with("Bearer ") {
                 &auth_value[7..]
             } else {
-                return ApiError::Unauthorized("Invalid authorization format".to_string()).into_response();
+                return ApiError::Unauthorized("Invalid authorization format".to_string())
+                    .into_response();
             }
         }
-        None => return ApiError::Unauthorized("Missing authorization header".to_string()).into_response(),
+        None => {
+            return ApiError::Unauthorized("Missing authorization header".to_string())
+                .into_response();
+        }
     };
 
     // Verifikasi token dgn fungsi dari utils

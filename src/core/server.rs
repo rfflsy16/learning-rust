@@ -9,7 +9,7 @@ use std::{env, str::FromStr};
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 
 use crate::{
-    core::{config::Config, authentication::auth_middleware},
+    core::{authentication::auth_middleware, config::Config},
     modules::{product::routes::product_routes, user::routes::user_routes},
 };
 

@@ -1,10 +1,10 @@
 use crate::core::error::ApiError;
 use chrono::{Duration, Utc};
-use jsonwebtoken::{decode, Algorithm, DecodingKey, EncodingKey, Header, Validation, encode};
+use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Header, Validation, decode, encode};
 use serde::{Deserialize, Serialize};
 use std::env;
-use uuid::Uuid;
 use tracing::error;
+use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Claims {
@@ -38,7 +38,7 @@ pub fn generate_token(user_id: Uuid) -> Result<String, ApiError> {
 pub fn verify_token(token: &str) -> Result<Uuid, ApiError> {
     // Ambil JWT secret dari environment
     let jwt_secret = env::var("JWT_SECRET").unwrap_or_else(|_| "".to_string());
-    
+
     if jwt_secret.is_empty() {
         error!("JWT_SECRET not set in environment");
         return Err(ApiError::Internal("Server configuration error".to_string()));
