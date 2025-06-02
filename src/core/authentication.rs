@@ -32,8 +32,8 @@ pub async fn auth_middleware(req: Request, next: Next) -> Response {
         Some(value) => {
             let auth_value = value.to_str().unwrap_or_default();
             // Token biasanya dalam format "Bearer {token}"
-            if auth_value.starts_with("Bearer ") {
-                &auth_value[7..]
+            if let Some(token) = auth_value.strip_prefix("Bearer ") {
+                token
             } else {
                 return ApiError::Unauthorized("Invalid authorization format".to_string())
                     .into_response();
